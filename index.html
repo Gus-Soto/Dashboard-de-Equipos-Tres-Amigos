@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flota y Confiabilidad 3A — Dashboard Ejecutivo C-Level</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* Tokens del sistema 3A (alineados 100% con Control de Combustible y Labores)
+       Sin rojo en ninguna parte: alertas en ámbar (FFD966), acento corporativo verde oscuro (375623). */
+    :root {
+      color-scheme: dark;
+      --bg: #0c111b;
+      --surface: #141b27;
+      --surface-2: #1b2433;
+      --border: #263043;
+      --text: #f3f5f8;
+      --text-2: #b4bccb;
+      --text-3: #7e889a;
+      --brand: #375623;
+      --brand-soft: rgba(55, 86, 35, 0.35);
+      --good: #4caf50;
+      --good-soft: rgba(76, 175, 80, 0.14);
+      --warn: #FFD966;
+      --warn-text: #FFD966;
+      --warn-soft: rgba(255, 217, 102, 0.14);
+      --series: #3987e5;
+      --series-muted: #2a3a55;
+      --series-2: #199e70;
+      --focus: #86b6ef;
+      --focus-soft: rgba(134, 182, 239, 0.10);
+      --grid: rgba(255, 255, 255, 0.06);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+      --card-radius: 12px;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f4f5f2;
+      --surface: #ffffff;
+      --surface-2: #f2f4ef;
+      --border: #dde1d8;
+      --text: #121512;
+      --text-2: #4a5049;
+      --text-3: #6f766d;
+      --brand: #375623;
+      --brand-soft: rgba(55, 86, 35, 0.12);
+      --good: #2f7d32;
+      --good-soft: rgba(47, 125, 50, 0.12);
+      --warn: #8a6400;
+      --warn-text: #5c4300;
+      --warn-soft: rgba(255, 217, 102, 0.35);
+      --series: #2a78d6;
+      --series-muted: #c6d6ea;
+      --series-2: #1b8f66;
+      --focus: #2a78d6;
+      --focus-soft: rgba(42, 120, 214, 0.07);
+      --grid: rgba(0, 0, 0, 0.07);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 Inter, system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, select, input { font: inherit; color: inherit; }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 0 24px 40px; }
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* Encabezado Ejecutivo */
+    header { border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 30; }
+    .head-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; flex-wrap: wrap; }
+    .logo { width: 38px; height: 38px; border-radius: 9px; background: var(--brand); color: #fff;
+      display: grid; place-items: center; font-weight: 800; font-size: 15px; flex: none; letter-spacing: -0.02em; }
+    .title h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+    .title p { margin: 2px 0 0; color: var(--text-3); font-size: 12px; }
+    .head-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .sync-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2);
+      border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; background: var(--surface-2); }
+    .sync-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+    .icon-btn { border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px;
+      padding: 6px 11px; cursor: pointer; font-size: 12.5px; color: var(--text-2); display: inline-flex; align-items: center; gap: 6px; }
+    .icon-btn:hover { color: var(--text); border-color: var(--focus); }
+
+    /* Barra de Filtros Globales */
+    .filter-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 0; }
+    .filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .field { display: inline-flex; align-items: center; gap: 6px; }
+    .field label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 600; }
+    select, input[type="search"] { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 10px; font-size: 13px; min-width: 130px; }
+    select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+    .filter-chip { background: var(--brand-soft); border: 1px solid var(--brand); color: #fff; padding: 4px 10px;
+      border-radius: 999px; font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px; }
+    .filter-chip button { background: none; border: 0; cursor: pointer; color: inherit; padding: 0; font-weight: bold; }
+
+    /* Storytelling Banner */
+    .story-card {
+      margin-top: 18px;
+      background: linear-gradient(135deg, rgba(55, 86, 35, 0.15) 0%, rgba(20, 27, 39, 0.95) 100%);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--brand);
+      border-radius: var(--card-radius);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .story-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .story-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand); font-weight: 700; }
+    .story-main { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.4; }
+    .story-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 4px; }
+    .story-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 12.5px; }
+    .story-item strong { color: var(--warn-text); font-weight: 600; }
+
+    /* Macro KPIs */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; }
+    @media (max-width: 1024px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 16px 18px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.2s;
+      position: relative;
+    }
+    .kpi-card:hover { border-color: var(--focus); transform: translateY(-2px); }
+    .kpi-label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-3); font-weight: 600; display: flex; justify-content: space-between; }
+    .kpi-value { font-size: 28px; font-weight: 800; margin: 8px 0 4px; letter-spacing: -0.02em; }
+    .kpi-sub { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge.good { background: var(--good-soft); color: var(--good); }
+    .badge.warn { background: var(--warn-soft); color: var(--warn-text); }
+    .badge.brand { background: var(--brand-soft); color: #fff; }
+
+    /* Pestañas */
+    nav.tabs { display: flex; gap: 4px; padding-top: 16px; border-bottom: 1px solid var(--border); margin: 20px 0; overflow-x: auto; }
+    nav.tabs button { border: 0; background: none; padding: 10px 16px; cursor: pointer; color: var(--text-3);
+      font-weight: 600; font-size: 13.5px; border-bottom: 2px solid transparent; white-space: nowrap; }
+    nav.tabs button.on { color: var(--text); border-bottom-color: var(--brand); }
+    nav.tabs button:hover:not(.on) { color: var(--text-2); }
+
+    /* Paneles de Contenido */
+    .tab-content { display: none; }
+    .tab-content.on { display: block; }
+
+    /* Tarjetas y Gráficos */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-bottom: 18px; }
+    @media (max-width: 960px) { .grid-2 { grid-template-columns: 1fr; } }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 18px; }
+    @media (max-width: 1024px) { .grid-3 { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 18px 20px;
+    }
+    .card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+    .card-head h3 { margin: 0; font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em; }
+    .card-head p { margin: 2px 0 0; color: var(--text-3); font-size: 12px; }
+
+    .chart-container { position: relative; width: 100%; height: 260px; }
+
+    /* Tablas Ejecutivas */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--card-radius); background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th { background: var(--surface-2); padding: 10px 14px; font-size: 11.5px; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--text-3); font-weight: 600; border-bottom: 1px solid var(--border); }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:last-child td { border-bottom: 0; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+    .row-clickable { cursor: pointer; }
+    .row-clickable:hover td { background: var(--focus-soft); }
+
+    /* Mini tarjeta de categoría */
+    .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .cat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .cat-card:hover { border-color: var(--focus); background: var(--surface-2); }
+    .cat-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); }
+    .cat-title { font-size: 13.5px; font-weight: 700; margin: 4px 0; color: var(--text); }
+    .cat-bar-wrap { width: 100%; height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+    .cat-bar { height: 100%; background: var(--brand); border-radius: 999px; }
+
+    /* Modal Ejecutivo (Drilldown Nivel 3) */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.65); display: none; z-index: 100;
+      padding: 24px; overflow-y: auto; backdrop-filter: blur(4px); }
+    .modal-bg.open { display: block; }
+    .modal { max-width: 900px; margin: 30px auto; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 24px 26px; box-shadow: var(--shadow); }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
+    .modal-head h2 { margin: 0; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+    .modal-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+    .modal-kpi { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+    .modal-kpi-label { font-size: 11px; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+    .modal-kpi-val { font-size: 18px; font-weight: 700; margin-top: 3px; }
+    .modal-section { margin-top: 18px; }
+    .modal-section h4 { margin: 0 0 10px; font-size: 13.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-2); }
+    .airtable-btn { background: var(--brand); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600;
+      cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+    .airtable-btn:hover { background: #446a2c; }
+
+    /* Tooltip enriquecido flotante */
+    .c-tooltip {
+      position: absolute;
+      z-index: 90;
+      background: #0f1623;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 12px;
+      max-width: 290px;
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      display: none;
+    }
+    .c-tooltip-head { font-weight: 700; font-size: 13px; margin-bottom: 4px; color: var(--focus); }
+    .c-tooltip-line { display: flex; justify-content: space-between; gap: 10px; margin: 3px 0; }
+    .c-tooltip-desc { color: var(--text-2); margin-top: 6px; font-size: 11.5px; line-height: 1.35; border-top: 1px solid var(--border); padding-top: 5px; }
+
+    /* Footer */
+    footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--text-3); font-size: 12px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- Encabezado -->
+  <header>
+    <div class="wrap head-row">
+      <div class="logo">3A</div>
+      <div class="title">
+        <h1>Flota y Confiabilidad 3A</h1>
+        <p>Cuadro de Mando Ejecutivo C-Level • Mantenimiento AgroIndustrial Tres Amigos S.A.</p>
+      </div>
+      <div class="head-right">
+        <div class="sync-badge" id="sync-info">
+          <span class="dot"></span>
+          <span>Airtable: <strong id="sync-time" class="num">Conectando...</strong></span>
+        </div>
+        <button class="icon-btn" id="theme-btn" title="Alternar tema claro/oscuro">
+          <span>Tema</span>
+        </button>
+        <button class="icon-btn" id="reload-btn" title="Recargar datos">
+          <span>Actualizar</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros Globales (Drilldown Nivel 2) -->
+    <div class="filter-bar">
+      <div class="wrap filter-row">
+        <div class="field">
+          <label for="f-finca">Finca</label>
+          <select id="f-finca">
+            <option value="todas">Todas las Fincas</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-tipo">Tipo de Maquinaria</label>
+          <select id="f-tipo">
+            <option value="todos">Todos los Tipos</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-disp">Disponibilidad</label>
+          <select id="f-disp">
+            <option value="todos">Todos los Estados</option>
+            <option value="Disponible">Solo Disponibles</option>
+            <option value="No Disponible">Solo No Disponibles</option>
+            <option value="A Espera de Repuestos">A Espera de Repuestos</option>
+          </select>
+        </div>
+        <div class="field" style="margin-left: auto;">
+          <label for="f-search">Buscar</label>
+          <input type="search" id="f-search" placeholder="Código, serie, modelo...">
+        </div>
+        <button class="icon-btn" id="reset-filters" style="display: none;">Limpiar Filtros</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- Storytelling Executive Banner -->
+    <section class="story-card" id="story-banner">
+      <div class="story-header">
+        <span class="story-title">El Pulso de la Flota Hoy • Dictamen de Confiabilidad</span>
+        <span class="badge brand" id="story-meta-badge">Meta Anual: ≥ 92.0%</span>
+      </div>
+      <div class="story-main" id="story-headline">
+        Analizando telemetría y registros de disponibilidad...
+      </div>
+      <div class="story-grid">
+        <div class="story-item" id="story-item-bottleneck">
+          Cargando análisis de embudo de paros...
+        </div>
+        <div class="story-item" id="story-item-finca">
+          Cargando concentración territorial...
+        </div>
+        <div class="story-item" id="story-item-predictive">
+          Cargando alertas tempranas de laboratorio...
+        </div>
+      </div>
+    </section>
+
+    <!-- Macro KPIs Ejecutivos (Nivel 1) -->
+    <section class="kpi-grid">
+      <div class="kpi-card" data-metric="disp" title="Clic para filtrar flota detenida">
+        <div class="kpi-label">
+          <span>Disponibilidad Mecánica</span>
+          <span class="badge good" id="kpi-disp-badge">En Meta</span>
+        </div>
+        <div class="kpi-value num" id="kpi-disp-val">--%</div>
+        <div class="kpi-sub">
+          <span id="kpi-disp-sub">207 de 222 equipos operativos</span>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-metric="espera" title="Clic para aislar cuello de botella de repuestos">
+        <div class="kpi-label">
+          <span>A Espera de Repuestos</span>
+          <span class="badge warn" id="kpi-espera-badge">Cuello de Botella</span>
+        </div>
+        <div class="kpi-value num" id="kpi-espera-val" style="color: var(--warn);">--</div>
+        <div class="kpi-sub">
+          <span id="kpi-espera-sub">80% del tiempo de inactividad</span>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-metric="mtbf" title="Tiempo medio entre fallas">
+        <div class="kpi-label">
+          <span>Confiabilidad MTBF</span>
+          <span class="badge brand">Media Flota</span>
+        </div>
+        <div class="kpi-value num" id="kpi-mtbf-val">-- hrs</div>
+        <div class="kpi-sub">
+          <span id="kpi-mtbf-sub">Horas operativas entre averías</span>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-metric="mttr" title="Tiempo medio de respuesta de taller">
+        <div class="kpi-label">
+          <span>Capacidad Taller MTTR</span>
+          <span class="badge brand">Resolución</span>
+        </div>
+        <div class="kpi-value num" id="kpi-mttr-val">-- hrs</div>
+        <div class="kpi-sub">
+          <span id="kpi-mttr-sub">Tiempo medio de paro por falla</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pestañas de Navegación C-Level -->
+    <nav class="tabs">
+      <button class="on" data-tab="tab-overview">1. Pulso de Flota & Disponibilidad</button>
+      <button data-tab="tab-bottleneck">2. Anatomía del Tiempo Muerto (Downtime & Repuestos)</button>
+      <button data-tab="tab-reliability">3. Confiabilidad & Predictivo (MTBF / Aceites)</button>
+      <button data-tab="tab-operation">4. Matriz Territorial & Utilización</button>
+    </nav>
+
+    <!-- PESTAÑA 1: VISTA GENERAL -->
+    <section class="tab-content on" id="tab-overview">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Disponibilidad Mecánica por Finca</h3>
+              <p>Comparativa del porcentaje operativo vs meta institucional (92%)</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-fincas-disp"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Estado Operativo de la Flota</h3>
+              <p>Desglose de disponibilidad y clasificación de paros</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-status-donut"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Categorías de Maquinaria -->
+      <div class="card" style="margin-bottom: 18px;">
+        <div class="card-head">
+          <div>
+            <h3>Salud de Flota por Tipo de Maquinaria</h3>
+            <p>Selecciona una categoría para aplicar filtro rápido al directorio</p>
+          </div>
+        </div>
+        <div class="cat-grid" id="category-cards"></div>
+      </div>
+
+      <!-- Directorio Ejecutivo de Equipos -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h3>Directorio de Equipos (<span id="table-count" class="num">0</span>)</h3>
+            <p>Haz clic en cualquier fila para abrir el Drilldown Ejecutivo 360°</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="table-equipos">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Tipo</th>
+                <th>Marca / Modelo</th>
+                <th>Finca</th>
+                <th>Labor</th>
+                <th>Estado</th>
+                <th>Horómetro</th>
+                <th>MTBF</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="table-equipos-body">
+              <tr><td colspan="9" style="text-align: center; color: var(--text-3);">Cargando registros...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 2: ANATOMÍA DEL TIEMPO MUERTO -->
+    <section class="tab-content" id="tab-bottleneck">
+      <div class="story-card" style="margin-top: 0; margin-bottom: 18px;">
+        <div class="story-header">
+          <span class="story-title">Diagnóstico de Pérdida de Disponibilidad</span>
+          <span class="badge warn">Cuello de Botella Logístico</span>
+        </div>
+        <div class="story-main" id="bottleneck-narrative">
+          El 80% de la indisponibilidad de flota proviene del retraso en recepción de repuestos y suministros, superando ampliamente el tiempo de diagnóstico mecánico efectivo.
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Distribución de Causas de Parada</h3>
+              <p>Equipos en taller por condición de detención</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-bottleneck-donut"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3 id="downtime-card-title">Horas de Paro de Maquinaria Detenida por Finca</h3>
+              <p id="downtime-card-desc">Horas acumuladas de inactividad de los 15 equipos actualmente fuera de servicio</p>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button id="btn-dt-activo" class="dt-toggle active" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; background: #375623; color: #fff; border: 1px solid #4a7530; cursor: pointer; font-weight: 600;">Paro Activo (15)</button>
+              <button id="btn-dt-historico" class="dt-toggle" style="font-size: 11px; padding: 4px 10px; border-radius: 4px; background: #162032; color: #8a919c; border: 1px solid #23334d; cursor: pointer;">Histórico Flota</button>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-downtime-fincas"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Auditoría de Flota Fuera de Servicio -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h3>Auditoría de Flota Fuera de Servicio (15 Equipos Detenidos)</h3>
+            <p>Equipos actualmente inactivos ordenados por días de parada, causa y repuestos pendientes</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Equipo</th>
+                <th>Finca</th>
+                <th>Tipo / Modelo</th>
+                <th>Condición</th>
+                <th>Horas de Paro</th>
+                <th>Días No Disponible</th>
+                <th>OTs Correctivas</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="table-top-paro-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 3: CONFIABILIDAD Y PREDICTIVO -->
+    <section class="tab-content" id="tab-reliability">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Benchmarking de Confiabilidad MTBF por Marca</h3>
+              <p>Promedio de horas trabajadas entre fallas por fabricante</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-mtbf-marcas"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Mantenimiento Proactivo (MP) vs Correctivo (MC) por Finca</h3>
+              <p>OTs Preventivas cumplidas vs OTs Correctivas generadas (datos reales de base)</p>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="chart-discipline-radar"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Watchlist Predictivo de Aceites -->
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h3>Semáforo Predictivo de Laboratorio (Análisis de Aceite)</h3>
+            <p>Muestras con alertas técnicas de desgaste o contaminación antes de fallo mayor</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Equipo</th>
+                <th>Componente</th>
+                <th>Estado de Muestra</th>
+                <th>Laboratorio / Control</th>
+                <th>Interpretación Técnica</th>
+                <th>Recomendación</th>
+                <th>Fecha Muestra</th>
+              </tr>
+            </thead>
+            <tbody id="table-aceites-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 4: MATRIZ TERRITORIAL & UTILIZACIÓN -->
+    <section class="tab-content" id="tab-operation">
+      <!-- Indicadores de Despliegue Territorial & Integridad -->
+      <div class="kpi-grid" style="margin-top: 0; margin-bottom: 18px;">
+        <div class="kpi-card" style="padding: 12px 16px;">
+          <div class="kpi-label">Finca Mayor Dotación</div>
+          <div class="kpi-value num" style="font-size: 20px; margin: 4px 0 2px;">Santa Rosa</div>
+          <div class="kpi-sub">88 equipos (39.6% de la flota)</div>
+        </div>
+        <div class="kpi-card" style="padding: 12px 16px;">
+          <div class="kpi-label">Labores Intensivas</div>
+          <div class="kpi-value num" style="font-size: 20px; margin: 4px 0 2px;">Transporte & Cosecha</div>
+          <div class="kpi-sub">121 equipos asignados (54.5%)</div>
+        </div>
+        <div class="kpi-card" style="padding: 12px 16px;">
+          <div class="kpi-label">Integridad Horómetros</div>
+          <div class="kpi-value num" style="font-size: 20px; margin: 4px 0 2px; color: var(--good);" id="val-horometros-salud">98.6%</div>
+          <div class="kpi-sub"><span id="val-horometros-danados">3</span> equipos con daño reportado</div>
+        </div>
+        <div class="kpi-card" style="padding: 12px 16px;">
+          <div class="kpi-label">Downtime Correctivo</div>
+          <div class="kpi-value num" style="font-size: 20px; margin: 4px 0 2px;" id="val-downtime-total">9 033 hrs</div>
+          <div class="kpi-sub"><span id="val-otc-activas">44</span> órdenes correctivas activas</div>
+        </div>
+      </div>
+
+      <!-- Gráficos de Despliegue Operativo -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Matriz Territorial: Finca × Labor Agrícola</h3>
+              <p>Dotación de maquinaria asignada por labor con paleta oficial de Tres Amigos</p>
+            </div>
+          </div>
+          <div class="chart-container" style="height: 300px;">
+            <canvas id="chart-matriz-finca-labor"></canvas>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Utilización de Flota: Horas Reales vs Capacidad Anual</h3>
+              <p>Horas promedio trabajadas vs horas programadas por tipo de maquinaria</p>
+            </div>
+          </div>
+          <div class="chart-container" style="height: 300px;">
+            <canvas id="chart-utilizacion-tipos"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visor Satelital SmartFleet GPS Embebido Interactivo -->
+      <div class="card" style="margin-top: 18px;">
+        <div class="card-head">
+          <div>
+            <h3>Supervisión Satelital en Tiempo Real (SmartFleet GPS)</h3>
+            <p>Geolocalización satelital en vivo de tractores, camiones y maquinaria en San Carlos (Esri World Imagery)</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="badge good" style="gap: 6px;"><span class="dot" style="background: var(--good); width: 7px; height: 7px; border-radius: 50%;"></span> GPS Satelital Conectado</span>
+            <a href="https://gus-soto.github.io/smartfleet-gps/" target="_blank" class="icon-btn" title="Abrir en pantalla completa">
+              Pantalla Completa
+            </a>
+          </div>
+        </div>
+        <div style="position: relative; width: 100%; height: 520px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: #090d16;">
+          <iframe src="https://gus-soto.github.io/smartfleet-gps/" style="width: 100%; height: 100%; border: 0;" loading="lazy" title="SmartFleet GPS"></iframe>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal Ejecutivo (Drilldown Nivel 3: Ficha 360° del Activo) -->
+  <div class="modal-bg" id="modal" role="dialog" aria-modal="true" aria-labelledby="m-codigo">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="m-codigo">Equipo ID <span class="badge good" id="m-status-badge">Disponible</span></h2>
+          <p id="m-subline" style="margin: 4px 0 0; color: var(--text-3); font-size: 13px;">Marca Modelo • Finca • Labor</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <a id="m-airtable-link" href="#" target="_blank" class="airtable-btn">
+            <span>Abrir en Airtable</span>
+          </a>
+          <button class="icon-btn" id="m-close" title="Cerrar modal">&times;</button>
+        </div>
+      </div>
+
+      <div class="modal-grid-3">
+        <div class="modal-kpi">
+          <div class="modal-kpi-label">Horómetro Actual</div>
+          <div class="modal-kpi-val num" id="m-horometro">0 hrs</div>
+        </div>
+        <div class="modal-kpi">
+          <div class="modal-kpi-label">Confiabilidad MTBF</div>
+          <div class="modal-kpi-val num" id="m-mtbf">0 hrs</div>
+        </div>
+        <div class="modal-kpi">
+          <div class="modal-kpi-label">Tiempo Paro MTTR</div>
+          <div class="modal-kpi-val num" id="m-mttr">0 hrs</div>
+        </div>
+      </div>
+
+      <div class="modal-grid-3">
+        <div class="modal-kpi">
+          <div class="modal-kpi-label">Horas Trabajadas (2026)</div>
+          <div class="modal-kpi-val num" id="m-horas-trab">0 hrs</div>
+        </div>
+        <div class="modal-kpi">
+          <div class="modal-kpi-label">Días Fuera de Servicio</div>
+          <div class="modal-kpi-val num" id="m-dias-paro">0 días</div>
+        </div>
+        <div class="modal-kpi">
+          <div class="modal-kpi-label">Cumplimiento MP</div>
+          <div class="modal-kpi-val num" id="m-cumpl-mp">--%</div>
+        </div>
+      </div>
+
+      <!-- Ficha de Alerta / Bloqueo -->
+      <div class="modal-section" id="m-alerta-box" style="display: none;">
+        <h4>Diagnóstico de Parada Actual</h4>
+        <div style="background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 8px; padding: 12px; color: var(--text);">
+          <strong style="color: var(--warn-text);" id="m-alerta-titulo">A Espera de Repuestos</strong>
+          <p id="m-alerta-desc" style="margin: 4px 0 0; font-size: 13px;"></p>
+        </div>
+      </div>
+
+      <!-- Historial de Mantenimiento Correctivo -->
+      <div class="modal-section">
+        <h4>Órdenes de Trabajo Correctivas Recientes</h4>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>OT ID</th>
+                <th>Estado</th>
+                <th>Falla Reportada</th>
+                <th>Días Antigüedad</th>
+              </tr>
+            </thead>
+            <tbody id="m-otc-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Análisis de Aceite Reciente -->
+      <div class="modal-section">
+        <h4>Último Análisis de Laboratorio de Aceite</h4>
+        <div id="m-aceite-box" style="font-size: 13px; color: var(--text-2);">
+          Sin muestras de laboratorio registradas para este activo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tooltip Contextual de Storytelling Flotante -->
+  <div class="c-tooltip" id="custom-tooltip">
+    <div class="c-tooltip-head" id="ct-title">Título</div>
+    <div class="c-tooltip-line"><span>Métrica:</span> <strong id="ct-val">--</strong></div>
+    <div class="c-tooltip-line"><span>Meta / Benchmark:</span> <span id="ct-bench">--</span></div>
+    <div class="c-tooltip-desc" id="ct-story">Explicación contextual...</div>
+  </div>
+
+  <footer>
+    <div class="wrap" style="width: 100%; display: flex; justify-content: space-between;">
+      <span>AgroIndustrial Tres Amigos S.A. • Suite de Confiabilidad y Flota C-Level</span>
+      <span>Axia Solution • gsoto@axia-solution.com</span>
+    </div>
+  </footer>
+
+  <script>
+    // Estado de la aplicación
+    let RAW_DATA = null;
+    let FILTERED_EQUIPOS = [];
+    let CHARTS = {};
+
+    const $ = id => document.getElementById(id);
+
+    // Formateadores
+    const fmtNum = n => (n === null || n === undefined || isNaN(n)) ? '0' : Number(n).toLocaleString('es-CR');
+    const fmtDec = (n, d = 1) => (n === null || n === undefined || isNaN(n)) ? '0.0' : Number(n).toLocaleString('es-CR', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+    // Cargar datos
+    async function loadData() {
+      try {
+        const res = await fetch('executive_equipos.json?t=' + Date.now());
+        if (!res.ok) throw new Error('No se pudo cargar executive_equipos.json');
+        RAW_DATA = await res.json();
+        $('sync-time').textContent = new Date(RAW_DATA.updatedAt).toLocaleTimeString('es-CR', { hour: '2-digit', minute: '2-digit' }) + ' (' + new Date(RAW_DATA.updatedAt).toLocaleDateString('es-CR') + ')';
+        initUI();
+      } catch (err) {
+        console.error(err);
+        $('sync-time').textContent = 'Error de conexión';
+      }
+    }
+
+    function initUI() {
+      populateFilterOptions();
+      applyFilters();
+      setupTabs();
+      setupModals();
+      setupTheme();
+    }
+
+    function populateFilterOptions() {
+      const fFinca = $('f-finca');
+      const fTipo = $('f-tipo');
+
+      const fincas = Object.keys(RAW_DATA.fincasStats).sort();
+      fFinca.innerHTML = '<option value="todas">Todas las Fincas</option>' +
+        fincas.map(f => `<option value="${f}">${f}</option>`).join('');
+
+      const tipos = Object.keys(RAW_DATA.tiposStats).sort();
+      fTipo.innerHTML = '<option value="todos">Todos los Tipos</option>' +
+        tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+
+      fFinca.addEventListener('change', applyFilters);
+      fTipo.addEventListener('change', applyFilters);
+      $('f-disp').addEventListener('change', applyFilters);
+      $('f-search').addEventListener('input', applyFilters);
+      $('reset-filters').addEventListener('click', resetFilters);
+    }
+
+    function resetFilters() {
+      $('f-finca').value = 'todas';
+      $('f-tipo').value = 'todos';
+      $('f-disp').value = 'todos';
+      $('f-search').value = '';
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const fincaSel = $('f-finca').value;
+      const tipoSel = $('f-tipo').value;
+      const dispSel = $('f-disp').value;
+      const query = $('f-search').value.trim().toLowerCase();
+
+      const hasFilter = fincaSel !== 'todas' || tipoSel !== 'todos' || dispSel !== 'todos' || query !== '';
+      $('reset-filters').style.display = hasFilter ? 'inline-block' : 'none';
+
+      FILTERED_EQUIPOS = RAW_DATA.equipos.filter(eq => {
+        if (fincaSel !== 'todas' && eq.finca !== fincaSel) return false;
+        if (tipoSel !== 'todos' && eq.tipo !== tipoSel) return false;
+        if (dispSel !== 'todos') {
+          if (dispSel === 'A Espera de Repuestos' && eq.subestado !== 'A Espera de Repuestos') return false;
+          if (dispSel === 'Disponible' && eq.disponibilidad !== 'Disponible') return false;
+          if (dispSel === 'No Disponible' && eq.disponibilidad !== 'No Disponible') return false;
+        }
+        if (query) {
+          const match = eq.codigo.toLowerCase().includes(query) ||
+            eq.marca.toLowerCase().includes(query) ||
+            eq.modelo.toLowerCase().includes(query) ||
+            eq.placa.toLowerCase().includes(query) ||
+            eq.serie.toLowerCase().includes(query);
+          if (!match) return false;
+        }
+        return true;
+      });
+
+      renderKPIs();
+      renderStorytelling();
+      renderCharts();
+      renderCategories();
+      renderTables();
+    }
+
+    function renderKPIs() {
+      const total = FILTERED_EQUIPOS.length;
+      const disp = FILTERED_EQUIPOS.filter(e => e.disponibilidad === 'Disponible').length;
+      const noDisp = total - disp;
+      const espera = FILTERED_EQUIPOS.filter(e => e.subestado === 'A Espera de Repuestos').length;
+      const pct = total > 0 ? (disp / total) * 100 : 0;
+
+      const mtbfVals = FILTERED_EQUIPOS.map(e => e.mtbf).filter(v => v > 0);
+      const avgMtbf = mtbfVals.length > 0 ? mtbfVals.reduce((a, b) => a + b, 0) / mtbfVals.length : 0;
+
+      const mttrVals = FILTERED_EQUIPOS.map(e => e.mttr).filter(v => v > 0);
+      const avgMttr = mttrVals.length > 0 ? mttrVals.reduce((a, b) => a + b, 0) / mttrVals.length : 0;
+
+      $('kpi-disp-val').textContent = fmtDec(pct, 1) + '%';
+      $('kpi-disp-sub').textContent = `${disp} de ${total} equipos activos`;
+      $('kpi-disp-badge').textContent = pct >= 92 ? 'En Meta' : 'Bajo Meta';
+      $('kpi-disp-badge').className = 'badge ' + (pct >= 92 ? 'good' : 'warn');
+
+      $('kpi-espera-val').textContent = fmtNum(espera);
+      $('kpi-espera-sub').textContent = noDisp > 0 ? `${Math.round((espera / noDisp) * 100)}% de los paros` : 'Sin paros reportados';
+
+      $('kpi-mtbf-val').textContent = fmtNum(Math.round(avgMtbf)) + ' hrs';
+      $('kpi-mttr-val').textContent = fmtDec(avgMttr, 1) + ' hrs';
+
+      // Pestaña 4 datos adicionales
+      const danados = FILTERED_EQUIPOS.filter(e => e.horometroDanado).length;
+      $('val-horometros-danados').textContent = fmtNum(danados);
+      const totalFiltrados = FILTERED_EQUIPOS.length;
+      const saludPct = totalFiltrados > 0 ? ((totalFiltrados - danados) / totalFiltrados) * 100 : 100;
+      if ($('val-horometros-salud')) $('val-horometros-salud').textContent = fmtDec(saludPct, 1) + '%';
+      if ($('val-otc-activas')) $('val-otc-activas').textContent = fmtNum(RAW_DATA.kpis.otcActivasCount);
+      if ($('val-downtime-total')) $('val-downtime-total').textContent = fmtNum(Math.round(FILTERED_EQUIPOS.reduce((s, e) => s + e.downtimeCorrectiva, 0))) + ' hrs';
+    }
+
+    function renderStorytelling() {
+      const story = RAW_DATA.narrativeStory;
+      const fincaSel = $('f-finca').value;
+
+      if (fincaSel === 'todas') {
+        $('story-headline').textContent = story.headline;
+        $('story-item-bottleneck').innerHTML = `<strong>Cuello de Botella:</strong> ${story.bottleneckHeadline}`;
+        $('story-item-finca').innerHTML = `<strong>Concentración:</strong> ${story.fincaImpact}`;
+        $('story-item-predictive').innerHTML = `<strong>Predictivo:</strong> ${story.predictiveWarning}`;
+      } else {
+        const fStat = RAW_DATA.fincasStats[fincaSel] || { total: 0, disponibles: 0, noDisponibles: 0, enEsperaRepuestos: 0 };
+        const fPct = fStat.total > 0 ? (fStat.disponibles / fStat.total) * 100 : 0;
+        $('story-headline').textContent = `${fincaSel} registra un ${fmtDec(fPct, 1)}% de disponibilidad con ${fStat.disponibles} equipos activos de ${fStat.total}.`;
+        $('story-item-bottleneck').innerHTML = `<strong>Cuello de Botella:</strong> ${fStat.enEsperaRepuestos} equipos detenidos en espera de repuestos en esta finca.`;
+        $('story-item-finca').innerHTML = `<strong>Downtime Acumulado:</strong> ${fmtNum(Math.round(fStat.horasParo))} horas de paro reportadas.`;
+        $('story-item-predictive').innerHTML = `<strong>Mantenimiento:</strong> Supervisión activa por técnicos de ${fincaSel}.`;
+      }
+    }
+
+    function renderCategories() {
+      const container = $('category-cards');
+      const tipoMap = {};
+
+      FILTERED_EQUIPOS.forEach(e => {
+        if (!tipoMap[e.tipo]) tipoMap[e.tipo] = { total: 0, disp: 0 };
+        tipoMap[e.tipo].total++;
+        if (e.disponibilidad === 'Disponible') tipoMap[e.tipo].disp++;
+      });
+
+      const items = Object.entries(tipoMap).sort((a, b) => b[1].total - a[1].total);
+      container.innerHTML = items.map(([tipo, s]) => {
+        const pct = s.total > 0 ? (s.disp / s.total) * 100 : 0;
+        return `
+          <div class="cat-card" onclick="filterByTipo('${tipo}')">
+            <div class="cat-head">
+              <span>${s.disp} / ${s.total}</span>
+              <span class="num">${fmtDec(pct, 0)}%</span>
+            </div>
+            <div class="cat-title">${tipo}</div>
+            <div class="cat-bar-wrap">
+              <div class="cat-bar" style="width: ${pct}%; background: ${pct >= 90 ? 'var(--good)' : 'var(--warn)'};"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.filterByTipo = function(tipo) {
+      $('f-tipo').value = tipo;
+      applyFilters();
+    };
+
+    function renderTables() {
+      // 1. Directorio general
+      $('table-count').textContent = fmtNum(FILTERED_EQUIPOS.length);
+      const tbody = $('table-equipos-body');
+      const maxRows = 25; // Mostrar primeros 25
+      const slice = FILTERED_EQUIPOS.slice(0, maxRows);
+
+      if (slice.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-3); padding: 24px;">No se encontraron equipos con los filtros seleccionados.</td></tr>';
+      } else {
+        tbody.innerHTML = slice.map(eq => {
+          const isDisp = eq.disponibilidad === 'Disponible';
+          const badgeClass = isDisp ? 'good' : 'warn';
+          return `
+            <tr class="row-clickable" onclick="openAssetModal('${eq.id}')">
+              <td><strong>${eq.codigo}</strong></td>
+              <td>${eq.tipo}</td>
+              <td>${eq.marca} ${eq.modelo}</td>
+              <td>${eq.finca}</td>
+              <td>${eq.labor}</td>
+              <td><span class="badge ${badgeClass}">${eq.subestado}</span></td>
+              <td class="num">${fmtNum(eq.horometro)}</td>
+              <td class="num">${eq.mtbf > 0 ? fmtNum(Math.round(eq.mtbf)) : '--'}</td>
+              <td><button class="icon-btn" style="padding: 3px 8px; font-size: 11px;">Ficha 360°</button></td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // 2. Equipos Detenidos (15 unidades fuera de servicio de Airtable)
+      const topParoBody = $('table-top-paro-body');
+      const listaDetenidos = (RAW_DATA.equiposDetenidos && RAW_DATA.equiposDetenidos.length > 0)
+        ? RAW_DATA.equiposDetenidos
+        : RAW_DATA.topEquiposParo;
+
+      topParoBody.innerHTML = listaDetenidos.map(eq => `
+        <tr class="row-clickable" onclick="openAssetModal('${eq.id}')">
+          <td><strong>${eq.codigo}</strong></td>
+          <td>${eq.finca}</td>
+          <td>${eq.tipo} (${eq.modelo})</td>
+          <td><span class="badge ${eq.subestado === 'A Espera de Repuestos' ? 'warn' : 'brand'}">${eq.subestado}</span></td>
+          <td class="num" style="color: var(--warn); font-weight: 700;" title="Paro en curso: ${Math.round((eq.diasNoDisponible || 0) * 24)} hrs | Histórico: ${Math.round(eq.downtimeCorrectiva || 0)} hrs">${fmtNum(Math.round(eq.horasParoActivo || ((eq.diasNoDisponible || 0) * 24)))} hrs</td>
+          <td class="num" style="font-weight: 600;">${fmtDec(eq.diasNoDisponible, 1)} d</td>
+          <td class="num">${eq.cantidadOTC}</td>
+          <td><button class="icon-btn" style="padding: 3px 8px; font-size: 11px;">Ficha</button></td>
+        </tr>
+      `).join('');
+
+      // 3. Aceites
+      const aceitesBody = $('table-aceites-body');
+      aceitesBody.innerHTML = RAW_DATA.aceitesAlertas.map(a => `
+        <tr>
+          <td><strong>${a.equipoReal || 'S/C'}</strong></td>
+          <td>${a.componente}</td>
+          <td><span class="badge warn">${a.estado}</span></td>
+          <td>${a.laboratorio} <span style="font-size: 11px; color: var(--text-3);">${a.controlLab}</span></td>
+          <td style="max-width: 280px; font-size: 12px; color: var(--text-2);">${a.interpretacion ? a.interpretacion.slice(0, 110) + '...' : '--'}</td>
+          <td style="max-width: 280px; font-size: 12px; color: var(--warn-text);">${a.recomendacion ? a.recomendacion.slice(0, 110) + '...' : '--'}</td>
+          <td class="num">${a.fecha || '--'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderCharts() {
+      // Destruir gráficos previos
+      Object.values(CHARTS).forEach(c => c && c.destroy());
+      CHARTS = {};
+
+      const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+      const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+      const textColor = isDark ? '#b4bccb' : '#4a5049';
+
+      // 1. Disponibilidad por Finca (Barras con línea de meta)
+      const fincaLabels = Object.keys(RAW_DATA.fincasStats).sort();
+      const fincaPcts = fincaLabels.map(f => {
+        const s = RAW_DATA.fincasStats[f];
+        return s.total > 0 ? Number(((s.disponibles / s.total) * 100).toFixed(1)) : 0;
+      });
+
+      const ctxFincas = $('chart-fincas-disp').getContext('2d');
+      CHARTS.fincas = new Chart(ctxFincas, {
+        type: 'bar',
+        data: {
+          labels: fincaLabels,
+          datasets: [
+            {
+              label: 'Disponibilidad %',
+              data: fincaPcts,
+              backgroundColor: fincaPcts.map(p => p >= 92 ? '#375623' : '#FFD966'),
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: 80,
+              max: 100,
+              grid: { color: gridColor },
+              ticks: { color: textColor, callback: v => v + '%' }
+            },
+            x: { grid: { display: false }, ticks: { color: textColor } }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+
+      // 2. Estado Donut
+      const total = FILTERED_EQUIPOS.length;
+      const disp = FILTERED_EQUIPOS.filter(e => e.disponibilidad === 'Disponible').length;
+      const espera = FILTERED_EQUIPOS.filter(e => e.subestado === 'A Espera de Repuestos').length;
+      const taller = total - disp - espera;
+
+      const ctxDonut = $('chart-status-donut').getContext('2d');
+      CHARTS.statusDonut = new Chart(ctxDonut, {
+        type: 'doughnut',
+        data: {
+          labels: ['Operando', 'Espera Repuestos', 'En Taller / Diagnóstico'],
+          datasets: [{
+            data: [disp, espera, taller],
+            backgroundColor: ['#375623', '#FFD966', '#3987e5'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12 } }
+          },
+          cutout: '68%'
+        }
+      });
+
+      // 3. Bottleneck Donut (100% datos reales de Airtable: 12 repuestos vs 3 taller)
+      const ctxBottleneck = $('chart-bottleneck-donut').getContext('2d');
+      CHARTS.bottleneck = new Chart(ctxBottleneck, {
+        type: 'doughnut',
+        data: {
+          labels: ['A Espera de Repuestos', 'En Taller / Diagnóstico'],
+          datasets: [{
+            data: [espera, taller],
+            backgroundColor: ['#FFD966', '#3987e5'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12 } },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const val = ctx.raw;
+                  const pct = noDisp > 0 ? Math.round((val / noDisp) * 100) : 0;
+                  return `${ctx.label}: ${val} equipos (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: '65%'
+        }
+      });
+
+      // 4. Downtime por Finca (Soporte dual: Paro Activo de 15 Equipos vs Histórico Flota)
+      let currentDowntimeMode = 'activo';
+
+      function getDowntimeData(mode) {
+        const isFiltered = FILTERED_EQUIPOS.length < RAW_DATA.equipos.length;
+        if (mode === 'activo') {
+          return fincaLabels.map(f => {
+            if (isFiltered) {
+              const eqFinca = FILTERED_EQUIPOS.filter(e => e.finca === f && e.disponibilidad !== 'Disponible');
+              return Math.round(eqFinca.reduce((s, e) => s + (e.horasParoActivo || ((e.diasNoDisponible || 0) * 24)), 0));
+            }
+            return Math.round(RAW_DATA.fincasStats[f]?.horasParoActivo || 0);
+          });
+        } else {
+          return fincaLabels.map(f => {
+            if (isFiltered) {
+              const eqFinca = FILTERED_EQUIPOS.filter(e => e.finca === f);
+              return Math.round(eqFinca.reduce((s, e) => s + (e.downtimeCorrectiva || 0), 0));
+            }
+            return Math.round(RAW_DATA.fincasStats[f]?.horasParoHistorico || 0);
+          });
+        }
+      }
+
+      const ctxDownFincas = $('chart-downtime-fincas').getContext('2d');
+      CHARTS.downFincas = new Chart(ctxDownFincas, {
+        type: 'bar',
+        data: {
+          labels: fincaLabels,
+          datasets: [{
+            label: 'Horas de Paro Activo',
+            data: getDowntimeData('activo'),
+            backgroundColor: '#3987e5',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { grid: { color: gridColor }, ticks: { color: textColor } },
+            x: { grid: { display: false }, ticks: { color: textColor } }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  const fName = ctx.label;
+                  const stat = RAW_DATA.fincasStats[fName];
+                  if (currentDowntimeMode === 'activo') {
+                    return ` Paro en curso: ${fmtNum(ctx.raw)} hrs (${stat?.noDisponibles || 0} equipos fuera de servicio)`;
+                  } else {
+                    return ` Downtime histórico: ${fmtNum(ctx.raw)} hrs (${stat?.total || 0} equipos, ${stat?.mcTotal || 0} OTCs)`;
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Toggle interactivo Paro Activo vs Histórico
+      const btnDtActivo = $('btn-dt-activo');
+      const btnDtHistorico = $('btn-dt-historico');
+      if (btnDtActivo && btnDtHistorico) {
+        btnDtActivo.onclick = () => {
+          currentDowntimeMode = 'activo';
+          btnDtActivo.style.background = '#375623';
+          btnDtActivo.style.color = '#fff';
+          btnDtActivo.style.borderColor = '#4a7530';
+          btnDtHistorico.style.background = '#162032';
+          btnDtHistorico.style.color = '#8a919c';
+          btnDtHistorico.style.borderColor = '#23334d';
+          $('downtime-card-title').textContent = 'Horas de Paro de Maquinaria Detenida por Finca';
+          $('downtime-card-desc').textContent = 'Horas acumuladas de inactividad de los 15 equipos actualmente fuera de servicio';
+          CHARTS.downFincas.data.datasets[0].label = 'Horas de Paro Activo';
+          CHARTS.downFincas.data.datasets[0].data = getDowntimeData('activo');
+          CHARTS.downFincas.data.datasets[0].backgroundColor = '#3987e5';
+          CHARTS.downFincas.update();
+        };
+
+        btnDtHistorico.onclick = () => {
+          currentDowntimeMode = 'historico';
+          btnDtHistorico.style.background = '#c98500';
+          btnDtHistorico.style.color = '#fff';
+          btnDtHistorico.style.borderColor = '#d97706';
+          btnDtActivo.style.background = '#162032';
+          btnDtActivo.style.color = '#8a919c';
+          btnDtActivo.style.borderColor = '#23334d';
+          $('downtime-card-title').textContent = 'Downtime Correctivo Histórico por Finca';
+          $('downtime-card-desc').textContent = 'Total acumulado de horas de paro reportadas en órdenes correctivas de toda la flota';
+          CHARTS.downFincas.data.datasets[0].label = 'Downtime Histórico';
+          CHARTS.downFincas.data.datasets[0].data = getDowntimeData('historico');
+          CHARTS.downFincas.data.datasets[0].backgroundColor = '#c98500';
+          CHARTS.downFincas.update();
+        };
+      }
+
+      // 5. MTBF por Marcas
+      const marcas = Object.entries(RAW_DATA.marcasStats)
+        .filter(([m, s]) => s.mtbfCount > 1)
+        .map(([m, s]) => ({ marca: m, mtbf: Math.round(s.mtbfSum / s.mtbfCount) }))
+        .sort((a, b) => b.mtbf - a.mtbf)
+        .slice(0, 6);
+
+      const ctxMtbfMarcas = $('chart-mtbf-marcas').getContext('2d');
+      CHARTS.mtbfMarcas = new Chart(ctxMtbfMarcas, {
+        type: 'bar',
+        data: {
+          labels: marcas.map(m => m.marca),
+          datasets: [{
+            data: marcas.map(m => m.mtbf),
+            backgroundColor: '#199e70',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { grid: { color: gridColor }, ticks: { color: textColor } },
+            x: { grid: { display: false }, ticks: { color: textColor } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // 6. Disciplina MP vs MC por Finca (100% datos reales de Airtable)
+      const fincasMP = Object.keys(RAW_DATA.fincasStats).sort();
+      const isFiltered = FILTERED_EQUIPOS.length < RAW_DATA.equipos.length;
+      const dataMPCumplidas = fincasMP.map(f => {
+        if (isFiltered) {
+          return FILTERED_EQUIPOS.filter(e => e.finca === f).reduce((sum, e) => sum + (e.otsMPCumplidas || 0), 0);
+        }
+        return RAW_DATA.fincasStats[f]?.mpCumplidas || 0;
+      });
+      const dataMCGeneradas = fincasMP.map(f => {
+        if (isFiltered) {
+          return FILTERED_EQUIPOS.filter(e => e.finca === f).reduce((sum, e) => sum + (e.cantidadOTC || 0), 0);
+        }
+        return RAW_DATA.fincasStats[f]?.mcTotal || 0;
+      });
+
+      const ctxDiscipline = $('chart-discipline-radar').getContext('2d');
+      CHARTS.discipline = new Chart(ctxDiscipline, {
+        type: 'bar',
+        data: {
+          labels: fincasMP,
+          datasets: [
+            {
+              label: 'OTs Preventivas Cumplidas (MP)',
+              data: dataMPCumplidas,
+              backgroundColor: '#375623',
+              borderRadius: 6
+            },
+            {
+              label: 'OTs Correctivas Generadas (MC)',
+              data: dataMCGeneradas,
+              backgroundColor: '#FFD966',
+              borderRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { grid: { color: gridColor }, ticks: { color: textColor } },
+            x: { grid: { display: false }, ticks: { color: textColor } }
+          },
+          plugins: {
+            legend: { position: 'bottom', labels: { color: textColor, boxWidth: 12 } },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return `${ctx.dataset.label}: ${fmtNum(ctx.raw)} órdenes`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // 7. Matriz Territorial: Finca × Labor Agrícola (Stacked Bar con Paleta Oficial 3A)
+      const COLOR_LABOR = {
+        'Cosecha': '#c98500',      // Ámbar/dorado cálido
+        'Preparación': '#3987e5',  // Azul ejecutivo
+        'Aplicaciones': '#199e70', // Verde esmeralda
+        'Transporte': '#4c6ef5',   // Índigo corporativo
+        'Semilla': '#4caf50',      // Verde pasto
+        'Tanquetero': '#0284c7',   // Celeste/cian
+        'Taller': '#8a919c',       // Gris neutro
+        'Bodega': '#64748b',       // Pizarra
+        'Sin Labor': '#475569'     // Pizarra oscuro
+      };
+
+      const fincasList = Object.keys(RAW_DATA.fincasStats).sort();
+      const laboresList = Object.keys(COLOR_LABOR);
+
+      const matrizDatasets = laboresList.map(labor => {
+        const dataPorFinca = fincasList.map(finca => {
+          return FILTERED_EQUIPOS.filter(e => e.finca === finca && e.labor === labor).length;
+        });
+        return {
+          label: labor,
+          data: dataPorFinca,
+          backgroundColor: COLOR_LABOR[labor],
+          borderRadius: 4
+        };
+      }).filter(ds => ds.data.some(count => count > 0));
+
+      const ctxMatriz = $('chart-matriz-finca-labor').getContext('2d');
+      CHARTS.matrizFincaLabor = new Chart(ctxMatriz, {
+        type: 'bar',
+        data: {
+          labels: fincasList,
+          datasets: matrizDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { stacked: true, grid: { display: false }, ticks: { color: textColor } },
+            y: { stacked: true, grid: { color: gridColor }, ticks: { color: textColor } }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: textColor, boxWidth: 10, font: { size: 11 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return `${ctx.dataset.label}: ${ctx.raw} equipos`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // 8. Utilización de Flota: Horas Reales vs Capacidad Programada
+      const tiposUtil = ['Tractor Agricola', 'Mini Excavadora', 'Tractor Oruga', 'Camión', 'PickUp', 'Montacarga', 'Excavadora'];
+      const tiposStatsUtil = tiposUtil.map(t => {
+        const eqTipo = FILTERED_EQUIPOS.filter(e => e.tipo === t);
+        if (eqTipo.length === 0) return { tipo: t, horasTrab: 0, horasProg: 0 };
+        const trabMedia = eqTipo.reduce((s, e) => s + e.horasTrabajadas, 0) / eqTipo.length;
+        const progMedia = eqTipo.reduce((s, e) => s + e.horasProgramadas, 0) / eqTipo.length;
+        return { tipo: t, horasTrab: Math.round(trabMedia), horasProg: Math.round(progMedia) };
+      }).filter(t => t.horasTrab > 0 || t.horasProg > 0);
+
+      const ctxUtil = $('chart-utilizacion-tipos').getContext('2d');
+      CHARTS.utilizacionTipos = new Chart(ctxUtil, {
+        type: 'bar',
+        data: {
+          labels: tiposStatsUtil.map(t => t.tipo),
+          datasets: [
+            {
+              label: 'Horas Trabajadas (Real)',
+              data: tiposStatsUtil.map(t => t.horasTrab),
+              backgroundColor: '#375623',
+              borderRadius: 5
+            },
+            {
+              label: 'Horas Programadas (Capacidad)',
+              data: tiposStatsUtil.map(t => t.horasProg),
+              backgroundColor: '#3987e5',
+              borderRadius: 5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { grid: { color: gridColor }, ticks: { color: textColor } },
+            x: { grid: { display: false }, ticks: { color: textColor } }
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: textColor, boxWidth: 10, font: { size: 11 } }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return `${ctx.dataset.label}: ${fmtNum(ctx.raw)} hrs`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Navegación por pestañas
+    function setupTabs() {
+      const tabBtns = document.querySelectorAll('nav.tabs button');
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabBtns.forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+          const target = btn.getAttribute('data-tab');
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('on'));
+          $(target).classList.add('on');
+
+          // Disparar resize de Chart.js para calcular dimensiones en pestañas recién visibles
+          setTimeout(() => {
+            Object.values(CHARTS).forEach(chart => {
+              if (chart && typeof chart.resize === 'function') chart.resize();
+            });
+          }, 50);
+        });
+      });
+
+      // Drilldown rápido desde KPI cards
+      document.querySelectorAll('.kpi-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const m = card.getAttribute('data-metric');
+          if (m === 'espera') {
+            $('f-disp').value = 'A Espera de Repuestos';
+            applyFilters();
+          } else if (m === 'disp') {
+            $('f-disp').value = 'No Disponible';
+            applyFilters();
+          }
+        });
+      });
+    }
+
+    // Modal 360° del Activo (Drilldown Nivel 3)
+    window.openAssetModal = function(id) {
+      const eq = RAW_DATA.equipos.find(e => e.id === id);
+      if (!eq) return;
+
+      $('m-codigo').innerHTML = `${eq.codigo} <span class="badge ${eq.disponibilidad === 'Disponible' ? 'good' : 'warn'}">${eq.subestado}</span>`;
+      $('m-subline').textContent = `${eq.marca} ${eq.modelo} • ${eq.tipo} • Finca: ${eq.finca} • Labor: ${eq.labor}`;
+      $('m-airtable-link').href = eq.airtableUrl;
+
+      $('m-horometro').textContent = fmtNum(eq.horometro) + ' hrs';
+      $('m-mtbf').textContent = eq.mtbf > 0 ? fmtNum(Math.round(eq.mtbf)) + ' hrs' : 'N/D';
+      $('m-mttr').textContent = eq.mttr > 0 ? fmtDec(eq.mttr, 1) + ' hrs' : 'N/D';
+      $('m-horas-trab').textContent = fmtNum(Math.round(eq.horasTrabajadas)) + ' hrs';
+      $('m-dias-paro').textContent = fmtDec(eq.diasNoDisponible, 1) + ' d';
+      $('m-cumpl-mp').textContent = eq.cumplimientoMP > 0 ? fmtDec(eq.cumplimientoMP * 100, 0) + '%' : '--';
+
+      // Alerta de parada
+      if (eq.disponibilidad !== 'Disponible') {
+        $('m-alerta-box').style.display = 'block';
+        $('m-alerta-titulo').textContent = eq.subestado;
+        $('m-alerta-desc').textContent = `Activo inactivo con ${fmtNum(Math.round(eq.downtimeCorrectiva))} horas acumuladas de parada y ${fmtDec(eq.diasNoDisponible, 1)} días fuera de servicio.`;
+      } else {
+        $('m-alerta-box').style.display = 'none';
+      }
+
+      // Historial OTC
+      const otcBody = $('m-otc-body');
+      if (eq.otcs && eq.otcs.length > 0) {
+        otcBody.innerHTML = eq.otcs.map(o => `
+          <tr>
+            <td><strong>${o.otId}</strong></td>
+            <td><span class="badge ${o.status === 'Completada' ? 'good' : 'warn'}">${o.status}</span></td>
+            <td>${o.falla}</td>
+            <td class="num">${o.diasAntiguedad} d</td>
+          </tr>
+        `).join('');
+      } else {
+        otcBody.innerHTML = '<tr><td colspan="4" style="color: var(--text-3); text-align: center;">Sin órdenes correctivas abiertas.</td></tr>';
+      }
+
+      // Historial Aceite
+      const aceiteBox = $('m-aceite-box');
+      if (eq.aceites && eq.aceites.length > 0) {
+        const lastA = eq.aceites[0];
+        aceiteBox.innerHTML = `
+          <div style="background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+              <strong>${lastA.componente} • Muestra: ${lastA.fecha || 'Reciente'}</strong>
+              <span class="badge ${lastA.estado === 'Normal' ? 'good' : 'warn'}">${lastA.estado}</span>
+            </div>
+            <div style="color: var(--text-2); font-size: 12.5px; margin-bottom: 6px;">${lastA.interpretacion || 'Sin interpretación registrada.'}</div>
+            <div style="color: var(--warn-text); font-size: 12.5px;"><strong>Recomendación:</strong> ${lastA.recomendacion || 'Continuar muestreo periódico.'}</div>
+          </div>
+        `;
+      } else {
+        aceiteBox.innerHTML = 'Sin muestras de laboratorio registradas para este activo.';
+      }
+
+      $('modal').classList.add('open');
+    };
+
+    function setupModals() {
+      const closeModal = () => $('modal').classList.remove('open');
+      $('m-close').addEventListener('click', closeModal);
+      $('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+      window.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    }
+
+    function setupTheme() {
+      $('theme-btn').addEventListener('click', () => {
+        const cur = document.documentElement.getAttribute('data-theme');
+        const next = cur === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        renderCharts();
+      });
+      $('reload-btn').addEventListener('click', loadData);
+    }
+
+    // Arranque
+    loadData();
+  </script>
+</body>
+</html>
