@@ -334,14 +334,14 @@
         </div>
       </div>
 
-      <div class="kpi-card" data-metric="espera" title="Clic para aislar cuello de botella de repuestos">
+      <div class="kpi-card" data-metric="espera" title="Clic para aislar los 5 equipos a espera de repuestos">
         <div class="kpi-label">
           <span>A Espera de Repuestos</span>
-          <span class="badge warn" id="kpi-espera-badge">Cuello de Botella</span>
+          <span class="badge warn" id="kpi-espera-badge">5 Equipos</span>
         </div>
         <div class="kpi-value num" id="kpi-espera-val" style="color: var(--warn);">--</div>
         <div class="kpi-sub">
-          <span id="kpi-espera-sub">80% del tiempo de inactividad</span>
+          <span id="kpi-espera-sub">3 detenidos • 2 operando</span>
         </div>
       </div>
 
@@ -845,7 +845,7 @@
         if (fincaSel !== 'todas' && eq.finca !== fincaSel) return false;
         if (tipoSel !== 'todos' && eq.tipo !== tipoSel) return false;
         if (dispSel !== 'todos') {
-          if (dispSel === 'A Espera de Repuestos' && eq.subestado !== 'A Espera de Repuestos') return false;
+          if (dispSel === 'A Espera de Repuestos' && !eq.esEsperaRepuestos) return false;
           if (dispSel === 'Disponible' && eq.disponibilidad !== 'Disponible') return false;
           if (dispSel === 'No Disponible' && eq.disponibilidad !== 'No Disponible') return false;
         }
@@ -871,7 +871,9 @@
       const total = FILTERED_EQUIPOS.length;
       const disp = FILTERED_EQUIPOS.filter(e => e.disponibilidad === 'Disponible').length;
       const noDisp = total - disp;
-      const espera = FILTERED_EQUIPOS.filter(e => e.subestado === 'A Espera de Repuestos').length;
+      const espera = FILTERED_EQUIPOS.filter(e => e.esEsperaRepuestos).length;
+      const esperaDet = FILTERED_EQUIPOS.filter(e => e.esEsperaRepuestos && e.disponibilidad === 'No Disponible').length;
+      const esperaOp = FILTERED_EQUIPOS.filter(e => e.esEsperaRepuestos && e.disponibilidad === 'Disponible').length;
       const pct = total > 0 ? (disp / total) * 100 : 0;
 
       const mtbfVals = FILTERED_EQUIPOS.map(e => e.mtbf).filter(v => v > 0);
@@ -886,7 +888,8 @@
       $('kpi-disp-badge').className = 'badge ' + (pct >= 92 ? 'good' : 'warn');
 
       $('kpi-espera-val').textContent = fmtNum(espera);
-      $('kpi-espera-sub').textContent = noDisp > 0 ? `${Math.round((espera / noDisp) * 100)}% de los paros` : 'Sin paros reportados';
+      $('kpi-espera-sub').textContent = `${esperaDet} detenidos • ${esperaOp} operando`;
+      $('kpi-espera-badge').textContent = `${espera} Equipos`;
 
       $('kpi-mtbf-val').textContent = fmtNum(Math.round(avgMtbf)) + ' hrs';
       $('kpi-mttr-val').textContent = fmtDec(avgMttr, 1) + ' hrs';
@@ -965,7 +968,7 @@
       } else {
         tbody.innerHTML = slice.map(eq => {
           const isDisp = eq.disponibilidad === 'Disponible';
-          const badgeClass = isDisp ? 'good' : 'warn';
+          const badgeClass = eq.esEsperaRepuestos ? 'warn' : (isDisp ? 'good' : 'brand');
           return `
             <tr class="row-clickable" onclick="openAssetModal('${eq.id}')">
               <td><strong>${eq.codigo}</strong></td>
@@ -993,9 +996,9 @@
           <td><strong>${eq.codigo}</strong></td>
           <td>${eq.finca}</td>
           <td>${eq.tipo} (${eq.modelo})</td>
-          <td><span class="badge ${eq.subestado === 'A Espera de Repuestos' ? 'warn' : 'brand'}">${eq.subestado}</span></td>
-          <td class="num" style="color: var(--warn); font-weight: 700;" title="Paro en curso: ${Math.round((eq.diasNoDisponible || 0) * 24)} hrs | Histórico: ${Math.round(eq.downtimeCorrectiva || 0)} hrs">${fmtNum(Math.round(eq.horasParoActivo || ((eq.diasNoDisponible || 0) * 24)))} hrs</td>
-          <td class="num" style="font-weight: 600;">${fmtDec(eq.diasNoDisponible, 1)} d</td>
+          <td><span class="badge ${eq.esEsperaRepuestos ? 'warn' : 'brand'}">${eq.subestado}</span></td>
+          <td class="num" style="color: var(--warn); font-weight: 700;" title="Paro en curso: ${Math.round((eq.diasParoActivo || 0) * 24)} hrs | Histórico: ${Math.round(eq.downtimeCorrectiva || 0)} hrs">${fmtNum(Math.round(eq.horasParoActivo || ((eq.diasParoActivo || 0) * 24)))} hrs</td>
+          <td class="num" style="font-weight: 600;">${fmtDec(eq.diasParoActivo, 1)} d</td>
           <td class="num">${eq.cantidadOTC}</td>
           <td><button class="icon-btn" style="padding: 3px 8px; font-size: 11px;">Ficha</button></td>
         </tr>
@@ -1066,15 +1069,15 @@
 
       // 2. Estado Donut
       const total = FILTERED_EQUIPOS.length;
-      const disp = FILTERED_EQUIPOS.filter(e => e.disponibilidad === 'Disponible').length;
-      const espera = FILTERED_EQUIPOS.filter(e => e.subestado === 'A Espera de Repuestos').length;
-      const taller = total - disp - espera;
+      const disp = FILTERED_EQUIPOS.filter(e => e.disponibilidad === 'Disponible' && !e.esEsperaRepuestos).length;
+      const espera = FILTERED_EQUIPOS.filter(e => e.esEsperaRepuestos).length;
+      const taller = FILTERED_EQUIPOS.filter(e => e.disponibilidad === 'No Disponible' && !e.esEsperaRepuestos).length;
 
       const ctxDonut = $('chart-status-donut').getContext('2d');
       CHARTS.statusDonut = new Chart(ctxDonut, {
         type: 'doughnut',
         data: {
-          labels: ['Operando', 'Espera Repuestos', 'En Taller / Diagnóstico'],
+          labels: ['Operando', 'A Espera de Repuestos', 'En Taller / Diagnóstico'],
           datasets: [{
             data: [disp, espera, taller],
             backgroundColor: ['#375623', '#FFD966', '#3987e5'],
@@ -1091,7 +1094,7 @@
         }
       });
 
-      // 3. Bottleneck Donut (100% datos reales de Airtable: 12 repuestos vs 3 taller)
+      // 3. Bottleneck Donut (5 a espera de repuestos: 3 detenidos + 2 operando vs 12 taller)
       const ctxBottleneck = $('chart-bottleneck-donut').getContext('2d');
       CHARTS.bottleneck = new Chart(ctxBottleneck, {
         type: 'doughnut',
@@ -1466,14 +1469,18 @@
       $('m-mtbf').textContent = eq.mtbf > 0 ? fmtNum(Math.round(eq.mtbf)) + ' hrs' : 'N/D';
       $('m-mttr').textContent = eq.mttr > 0 ? fmtDec(eq.mttr, 1) + ' hrs' : 'N/D';
       $('m-horas-trab').textContent = fmtNum(Math.round(eq.horasTrabajadas)) + ' hrs';
-      $('m-dias-paro').textContent = fmtDec(eq.diasNoDisponible, 1) + ' d';
+      $('m-dias-paro').textContent = eq.disponibilidad === 'No Disponible'
+        ? `${fmtDec(eq.diasParoActivo, 1)} d (en curso)`
+        : `${fmtDec(eq.diasNoDisponible, 1)} d (hist.)`;
       $('m-cumpl-mp').textContent = eq.cumplimientoMP > 0 ? fmtDec(eq.cumplimientoMP * 100, 0) + '%' : '--';
 
-      // Alerta de parada
-      if (eq.disponibilidad !== 'Disponible') {
+      // Alerta de parada o repuesto pendiente
+      if (eq.esEsperaRepuestos || eq.disponibilidad !== 'Disponible') {
         $('m-alerta-box').style.display = 'block';
         $('m-alerta-titulo').textContent = eq.subestado;
-        $('m-alerta-desc').textContent = `Activo inactivo con ${fmtNum(Math.round(eq.downtimeCorrectiva))} horas acumuladas de parada y ${fmtDec(eq.diasNoDisponible, 1)} días fuera de servicio.`;
+        $('m-alerta-desc').textContent = eq.disponibilidad !== 'Disponible'
+          ? `Activo fuera de servicio con ${fmtNum(Math.round(eq.downtimeCorrectiva))} horas acumuladas de parada y ${fmtDec(eq.diasNoDisponible, 1)} días detenido.`
+          : `Activo actualmente operativo pero con orden de trabajo correctiva en curso a la espera de repuestos.`;
       } else {
         $('m-alerta-box').style.display = 'none';
       }
