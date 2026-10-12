@@ -765,12 +765,22 @@
     const fuente = new URLSearchParams(location.search).get('fuente');
     const DATA_URL = fuente === 'n8n' ? WEBHOOK_URL : (fuente === 'local' ? 'executive_equipos.json' : (isLocalHost ? 'executive_equipos.json' : WEBHOOK_URL));
 
-    async function loadData(initial = true) {
-      if (initial) $('sync-time').textContent = 'Conectando...';
+    async function loadData(initial = true, forceRefresh = false) {
+      const reloadBtn = $('reload-btn');
+      if (initial) {
+        $('sync-time').textContent = 'Conectando...';
+      } else if (forceRefresh) {
+        $('sync-time').textContent = 'Sincronizando con Airtable...';
+        if (reloadBtn) {
+          reloadBtn.style.opacity = '0.5';
+          reloadBtn.style.pointerEvents = 'none';
+        }
+      }
       try {
         let res;
         try {
-          res = await fetch(DATA_URL + (DATA_URL.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store' });
+          const refreshParam = forceRefresh ? '&refresh=true' : '';
+          res = await fetch(DATA_URL + (DATA_URL.includes('?') ? '&' : '?') + 't=' + Date.now() + refreshParam, { cache: 'no-store' });
           if (!res.ok) throw new Error('HTTP ' + res.status);
         } catch (fetchErr) {
           if (DATA_URL !== 'executive_equipos.json') {
@@ -793,7 +803,12 @@
         }
       } catch (err) {
         console.error(err);
-        if (initial) $('sync-time').textContent = 'Error de conexión';
+        if (initial || forceRefresh) $('sync-time').textContent = 'Error de conexión';
+      } finally {
+        if (reloadBtn) {
+          reloadBtn.style.opacity = '';
+          reloadBtn.style.pointerEvents = '';
+        }
       }
     }
 
@@ -1535,13 +1550,13 @@
         document.documentElement.setAttribute('data-theme', next);
         renderCharts();
       });
-      $('reload-btn').addEventListener('click', () => loadData(false));
+      $('reload-btn').addEventListener('click', () => loadData(false, true));
     }
 
     // Arranque
-    loadData(true);
-    // Recarga silenciosa en segundo plano cada 15 min
-    setInterval(() => loadData(false), 15 * 60 * 1000);
+    loadData(true, false);
+    // Recarga silenciosa en segundo plano cada 15 min (desde caché caliente)
+    setInterval(() => loadData(false, false), 15 * 60 * 1000);
   </script>
 </body>
 </html>
