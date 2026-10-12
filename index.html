@@ -121,9 +121,10 @@
     .story-item strong { color: var(--warn-text); font-weight: 600; }
 
     /* Macro KPIs */
-    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; }
-    @media (max-width: 1024px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr; } }
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-top: 18px; }
+    @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .kpi-grid { grid-template-columns: 1fr; } }
 
     .kpi-card {
       background: var(--surface);
@@ -283,9 +284,9 @@
           <label for="f-disp">Disponibilidad</label>
           <select id="f-disp">
             <option value="todos">Todos los Estados</option>
-            <option value="Disponible">Solo Disponibles</option>
-            <option value="No Disponible">Solo No Disponibles</option>
-            <option value="A Espera de Repuestos">A Espera de Repuestos</option>
+            <option value="Disponible">Solo Disponibles (Operando)</option>
+            <option value="No Disponible">Solo No Disponibles (Detenidos)</option>
+            <option value="A Espera de Repuestos">En Espera de Repuestos</option>
           </select>
         </div>
         <div class="field" style="margin-left: auto;">
@@ -323,25 +324,36 @@
 
     <!-- Macro KPIs Ejecutivos (Nivel 1) -->
     <section class="kpi-grid">
-      <div class="kpi-card" data-metric="disp" title="Clic para filtrar flota detenida">
+      <div class="kpi-card" data-metric="disp" title="Clic para ver toda la flota">
         <div class="kpi-label">
           <span>Disponibilidad Mecánica</span>
           <span class="badge good" id="kpi-disp-badge">En Meta</span>
         </div>
         <div class="kpi-value num" id="kpi-disp-val">--%</div>
         <div class="kpi-sub">
-          <span id="kpi-disp-sub">207 de 222 equipos operativos</span>
+          <span id="kpi-disp-sub">-- de -- equipos activos</span>
         </div>
       </div>
 
-      <div class="kpi-card" data-metric="espera" title="Clic para aislar los 5 equipos a espera de repuestos">
+      <div class="kpi-card" data-metric="detenidos" title="Clic para aislar los equipos detenidos fuera de servicio">
+        <div class="kpi-label">
+          <span>Flota Detenida</span>
+          <span class="badge warn" id="kpi-detenidos-badge">-- Equipos</span>
+        </div>
+        <div class="kpi-value num" id="kpi-detenidos-val" style="color: var(--warn);">--</div>
+        <div class="kpi-sub">
+          <span id="kpi-detenidos-sub">-- en taller • -- por repuestos</span>
+        </div>
+      </div>
+
+      <div class="kpi-card" data-metric="espera" title="Clic para ver equipos con órdenes a espera de repuestos">
         <div class="kpi-label">
           <span>A Espera de Repuestos</span>
-          <span class="badge warn" id="kpi-espera-badge">5 Equipos</span>
+          <span class="badge brand" id="kpi-espera-badge">-- Equipos</span>
         </div>
-        <div class="kpi-value num" id="kpi-espera-val" style="color: var(--warn);">--</div>
+        <div class="kpi-value num" id="kpi-espera-val" style="color: var(--brand);">--</div>
         <div class="kpi-sub">
-          <span id="kpi-espera-sub">3 detenidos • 2 operando</span>
+          <span id="kpi-espera-sub">-- detenidos • -- operando</span>
         </div>
       </div>
 
@@ -492,7 +504,7 @@
       <div class="card">
         <div class="card-head">
           <div>
-            <h3>Auditoría de Flota Fuera de Servicio (15 Equipos Detenidos)</h3>
+            <h3>Auditoría de Flota Fuera de Servicio (<span id="titulo-detenidos-count">9</span> Equipos Detenidos)</h3>
             <p>Equipos actualmente inactivos ordenados por días de parada, causa y repuestos pendientes</p>
           </div>
         </div>
@@ -885,10 +897,11 @@
     function renderKPIs() {
       const total = FILTERED_EQUIPOS.length;
       const disp = FILTERED_EQUIPOS.filter(e => e.disponibilidad === 'Disponible').length;
-      const noDisp = total - disp;
+      const noDisp = FILTERED_EQUIPOS.filter(e => e.disponibilidad === 'No Disponible').length;
       const espera = FILTERED_EQUIPOS.filter(e => e.esEsperaRepuestos).length;
       const esperaDet = FILTERED_EQUIPOS.filter(e => e.esEsperaRepuestos && e.disponibilidad === 'No Disponible').length;
       const esperaOp = FILTERED_EQUIPOS.filter(e => e.esEsperaRepuestos && e.disponibilidad === 'Disponible').length;
+      const enTaller = noDisp - esperaDet;
       const pct = total > 0 ? (disp / total) * 100 : 0;
 
       const mtbfVals = FILTERED_EQUIPOS.map(e => e.mtbf).filter(v => v > 0);
@@ -901,6 +914,11 @@
       $('kpi-disp-sub').textContent = `${disp} de ${total} equipos activos`;
       $('kpi-disp-badge').textContent = pct >= 92 ? 'En Meta' : 'Bajo Meta';
       $('kpi-disp-badge').className = 'badge ' + (pct >= 92 ? 'good' : 'warn');
+
+      $('kpi-detenidos-val').textContent = fmtNum(noDisp);
+      $('kpi-detenidos-sub').textContent = `${enTaller} en taller • ${esperaDet} por repuestos`;
+      $('kpi-detenidos-badge').textContent = `${noDisp} Equipos`;
+      $('kpi-detenidos-badge').className = 'badge ' + (noDisp > 0 ? 'warn' : 'good');
 
       $('kpi-espera-val').textContent = fmtNum(espera);
       $('kpi-espera-sub').textContent = `${esperaDet} detenidos • ${esperaOp} operando`;
@@ -1000,11 +1018,15 @@
         }).join('');
       }
 
-      // 2. Equipos Detenidos (15 unidades fuera de servicio de Airtable)
+      // 2. Equipos Detenidos
       const topParoBody = $('table-top-paro-body');
       const listaDetenidos = (RAW_DATA.equiposDetenidos && RAW_DATA.equiposDetenidos.length > 0)
         ? RAW_DATA.equiposDetenidos
         : RAW_DATA.topEquiposParo;
+
+      if ($('titulo-detenidos-count')) {
+        $('titulo-detenidos-count').textContent = listaDetenidos.length;
+      }
 
       topParoBody.innerHTML = listaDetenidos.map(eq => `
         <tr class="row-clickable" onclick="openAssetModal('${eq.id}')">
@@ -1460,11 +1482,14 @@
       document.querySelectorAll('.kpi-card').forEach(card => {
         card.addEventListener('click', () => {
           const m = card.getAttribute('data-metric');
-          if (m === 'espera') {
+          if (m === 'detenidos') {
+            $('f-disp').value = 'No Disponible';
+            applyFilters();
+          } else if (m === 'espera') {
             $('f-disp').value = 'A Espera de Repuestos';
             applyFilters();
           } else if (m === 'disp') {
-            $('f-disp').value = 'No Disponible';
+            $('f-disp').value = 'todos';
             applyFilters();
           }
         });
